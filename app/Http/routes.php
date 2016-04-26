@@ -1,11 +1,20 @@
 <?php
-Route::get('/', function () {
-    return view('welcome');
-});
+#Book Specific Routes
+Route::get('/', 'BookController@getIndex');
 Route::get('/books', 'BookController@getIndex');
+
+Route::get('/book/edit/{id?}', 'BookController@getEdit');
+Route::post('/book/edit', 'BookController@postEdit');
+
 Route::get('/book/create', 'BookController@getCreate');
 Route::post('/book/create', 'BookController@postCreate');
+
 Route::get('/book/show/{title?}', 'BookController@getShow');
+
+Route::get('/book/delete/{id?}', 'BookController@getDelete');
+Route::post('/book/delete', 'BookController@postDelete');
+
+#Practice Routes
 Route::get('/practice', function() {
     $random = new Random();
     return $random->getRandomString(10);
@@ -49,3 +58,19 @@ Route::get('/debug', function() {
     echo '</pre>';
 
 });
+
+
+Route::get('/practice/ex1', 'PracticeController@getEx1');
+Route::get('/practice/ex2', 'PracticeController@getEx2');
+Route::get('/practice/ex3', 'PracticeController@getEx3');
+Route::get('/practice/ex4', 'PracticeController@getEx4');
+Route::get('/practice/ex5', 'PracticeController@getEx5');
+Route::get('/practice/ex6', 'PracticeController@getEx6');
+Route::get('/practice/ex7', 'PracticeController@getEx7');
+Route::get('/practice/ex8', 'PracticeController@getEx8');
+Route::get('/practice/ex16', 'PracticeController@getEx16');
+Route::get('/practice/ex17', 'PracticeController@getEx17');
+Route::get('/practice/ex18', 'PracticeController@getEx18');
+Route::get('/practice/ex19', 'PracticeController@getEx19');
+Route::get('/practice/ex20', 'PracticeController@getEx20');
+Route::get('/practice/ex21', 'PracticeController@getEx21');
