@@ -1,27 +1,82 @@
 <?php
-#Book Specific Routes
-Route::get('/', 'BookController@getIndex');
+
+
+
+# ------------------------------------
+# Authentication
+# ------------------------------------
+Route::get('/login', 'Auth\AuthController@getLogin');
+Route::post('/login', 'Auth\AuthController@postLogin');
+
+Route::get('/register', 'Auth\AuthController@getRegister');
+Route::post('/register', 'Auth\AuthController@postRegister');
+
+Route::get('/logout', 'Auth\AuthController@logout');
+
+# Debugging route just to show whether you're logged in or not
+Route::get('/show-login-status', function() {
+
+    # You may access the authenticated user via the Auth facade
+    $user = Auth::user();
+
+    if($user) {
+        echo 'You are logged in.';
+        dump($user->toArray());
+    } else {
+        echo 'You are not logged in.';
+    }
+
+    return;
+
+});
+
+
+
+# ------------------------------------
+# Practice routes
+# ------------------------------------
+for($i = 0; $i <= 100; $i++) {
+    Route::get("/practice/ex".$i, "PracticeController@getEx".$i);
+}
+
+
+
+# ------------------------------------
+# Book specific routes
+# ------------------------------------
+Route::get('/', 'WelcomeController@getIndex'); # Home
 Route::get('/books', 'BookController@getIndex');
 
-Route::get('/book/edit/{id?}', 'BookController@getEdit');
-Route::post('/book/edit', 'BookController@postEdit');
+Route::group(['middleware' => 'auth'], function() {
+    Route::get('/book/edit/{id?}', 'BookController@getEdit');
+    Route::post('/book/edit', 'BookController@postEdit');
+    Route::get('/book/create', 'BookController@getCreate');
+    Route::post('/book/create', 'BookController@postCreate');
 
-Route::get('/book/create', 'BookController@getCreate');
-Route::post('/book/create', 'BookController@postCreate');
+    Route::get('/book/confirm-delete/{id?}', 'BookController@getConfirmDelete');
+    Route::get('/book/delete/{id?}', 'BookController@getDelete');
 
-Route::get('/book/show/{title?}', 'BookController@getShow');
+    Route::get('/book/show/{id?}', 'BookController@getShow');
 
-Route::get('/book/delete/{id?}', 'BookController@getDelete');
-Route::post('/book/delete', 'BookController@postDelete');
-
-#Practice Routes
-Route::get('/practice', function() {
-    $random = new Random();
-    return $random->getRandomString(10);
 });
+
+
+
+
+
+# ------------------------------------
+# Misc debug routes
+# ------------------------------------
 # Restrict certain routes to only be viewable in the local environments
 if(App::environment('local')) {
+
     Route::get('logs', '\Rap2hpoutre\LaravelLogViewer\LogViewerController@index');
+
+    Route::get('/drop', function() {
+        DB::statement('DROP database foobooks');
+        DB::statement('CREATE database foobooks');
+        return 'Dropped foobooks; created foobooks.';
+    });
 }
 
 Route::get('/debug', function() {
@@ -58,19 +113,3 @@ Route::get('/debug', function() {
     echo '</pre>';
 
 });
-
-
-Route::get('/practice/ex1', 'PracticeController@getEx1');
-Route::get('/practice/ex2', 'PracticeController@getEx2');
-Route::get('/practice/ex3', 'PracticeController@getEx3');
-Route::get('/practice/ex4', 'PracticeController@getEx4');
-Route::get('/practice/ex5', 'PracticeController@getEx5');
-Route::get('/practice/ex6', 'PracticeController@getEx6');
-Route::get('/practice/ex7', 'PracticeController@getEx7');
-Route::get('/practice/ex8', 'PracticeController@getEx8');
-Route::get('/practice/ex16', 'PracticeController@getEx16');
-Route::get('/practice/ex17', 'PracticeController@getEx17');
-Route::get('/practice/ex18', 'PracticeController@getEx18');
-Route::get('/practice/ex19', 'PracticeController@getEx19');
-Route::get('/practice/ex20', 'PracticeController@getEx20');
-Route::get('/practice/ex21', 'PracticeController@getEx21');

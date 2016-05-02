@@ -15,4 +15,9 @@ class Book extends Model
     public function tags() {
         return $this->belongsToMany('\App\Tag')->withTimestamps();
     }
+
+    public static function getAllBooksWithAuthors() {
+        return \App\Book::with('author')->orderBy('id','desc')->get();
+    }
+
 }

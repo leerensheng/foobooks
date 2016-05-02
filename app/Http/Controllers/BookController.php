@@ -1,81 +1,184 @@
 <?php
+
 namespace App\Http\Controllers;
+
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+
 class BookController extends Controller {
+
     /**
     * Responds to requests to GET /books
     */
     public function getIndex() {
 
-        $books = \App\Book::orderBy('id','desc')->get();
+        $books = \App\Book::getAllBooksWithAuthors();
 
         return view('books.index')->with('books',$books);
     }
+
+
     /**
      * Responds to requests to GET /books/show/{id}
      */
-    public function getShow($title = null) {
+    public function getShow($id = null) {
+
+        $book = \App\Book::find($id);
+
+        if(is_null($book)) {
+            \Session::flash('message','Book not found');
+            return redirect('/books');
+        }
+
+        # Fetch similar books from the Goole Books API
+        $googleBooks = new \App\Libraries\GoogleBooks();
+        $author_name = $book->author->first_name.' '.$book->author->last_name;
+        $otherBooksByThisAuthor = $googleBooks->getOtherBooksByAuthor($author_name);
+
         return view('books.show',[
-            'title' => $title,
+            'book' => $book,
+            'otherBooksByThisAuthor' => $otherBooksByThisAuthor
         ]);
+
     }
+
+
     /**
      * Responds to requests to GET /books/create
      */
     public function getCreate() {
-        return view('books.create');
+
+        // if(!\Auth::check()) {
+        //     \Session::flash('message','You have to be logged in to create a new book.');
+        //     return redirect('/');
+        // }
+
+        $authors_for_dropdown = \App\Author::authorsForDropdown();
+        $tags_for_checkboxes = \App\Tag::getTagsForCheckboxes();
+
+        return view('books.create')->with([
+            'authors_for_dropdown' => $authors_for_dropdown,
+            'tags_for_checkboxes' => $tags_for_checkboxes,
+        ]);
     }
+
+
     /**
-     * Responds to requests to POST /books/create
+     * Responds to requests to POST /book/create
      */
     public function postCreate(Request $request) {
+
+        $messages = [
+            'not_in' => 'You have to choose an author.',
+        ];
+
         $this->validate($request,[
             'title' => 'required|min:3',
-            'author' => 'required',
             'published' => 'required|min:4',
             'cover' => 'required|url',
-            'purchase_link' => 'required|url'
-        ]);
+            'purchase_link' => 'required|url',
+            'author_id' => 'not_in:0'
+        ],$messages);
 
-        #add book to database
-        //$book = new \App\Book();
-        //$book->title = $request->title;
-        //$book->author = $request->author;
-        //$book->published = $request->published;
-        //$book->cover = $request->cover;
-        //$book->purchase_link = $request->purchase_link;
-        //$book->save();
+        # Add the book (this was how we did it pre-mass assignment)
+        // $book = new \App\Book();
+        // $book->title = $request->title;
+        // $book->author = $request->author;
+        // $book->published = $request->published;
+        // $book->cover = $request->cover;
+        // $book->purchase_link = $request->purchase_link;
+        // $book->save();
 
-        #Mass Assignment
-        $data = $request->only('title','author','published','cover','purchase_link');
+        # Mass Assignment
+        $data = $request->only('title','author_id','published','cover','purchase_link');
+        $data['user_id'] = \Auth::id();
+
+        # One way to add the data
         #$book = new \App\Book($data);
         #$book->save();
 
-        #Mass Assignment 2
-        \App\Book::create($data);
+        # An alternative way to add the data
+        $book = \App\Book::create($data);
+
+        # Save Tags
+        $tags = ($request->tags) ?: [];
+        $book->tags()->sync($tags);
+        $book->save();
 
         \Session::flash('message','Your book was added');
 
         return redirect('/books');
     }
 
+
+    /**
+	* Responds to requests to GET /book/edit/{id?}
+	*/
     public function getEdit($id) {
 
-        $book = \App\Book::find($id);
-        return view('books.edit')->with('book',$book);
+        $book = \App\Book::with('tags')->find($id);
+
+        if(is_null($book)) {
+            \Session::flash('message','Book not found');
+            return redirect('/books');
+        }
+
+        if($book->user_id != \Auth::id()) {
+            \Session::flash('message','You do not have access to edit that book.');
+            return redirect('/books');
+        }
+
+        $authors_for_dropdown = \App\Author::authorsForDropdown();
+
+        $tags_for_checkboxes = \App\Tag::getTagsForCheckboxes();
+
+        $tags_for_this_book = $book->getTagsForThisBook();
+
+        return view('books.edit')
+            ->with('book',$book)
+            ->with('authors_for_dropdown',$authors_for_dropdown)
+            ->with('tags_for_checkboxes',$tags_for_checkboxes)
+            ->with('tags_for_this_book',$tags_for_this_book);
 
     }
 
+
+    /**
+	* Responds to requests to POST /book/edit/{id?}
+	*/
     public function postEdit(Request $request) {
+
+        $messages = [
+            'not_in' => 'You have to choose an author.',
+        ];
+
+        $this->validate($request,[
+            'title' => 'required|min:3',
+            'published' => 'required|min:4',
+            'cover' => 'required|url',
+            'purchase_link' => 'required|url',
+            'author_id' => 'not_in:0'
+        ],$messages);
 
         $book = \App\Book::find($request->id);
 
         $book->title = $request->title;
-        $book->author = $request->author;
+        $book->author_id = $request->author_id;
         $book->cover = $request->cover;
         $book->published = $request->published;
         $book->purchase_link = $request->purchase_link;
+
+        # If there were tags selected...
+        if($request->tags) {
+            $tags = $request->tags;
+        }
+        # If there were no tags selected (i.e. no tags in the request)
+        # default to an empty array of tags
+        else {
+            $tags = [];
+        }
+
+        $book->tags()->sync($tags);
 
         $book->save();
 
@@ -84,18 +187,43 @@ class BookController extends Controller {
 
     }
 
-    public function getDelete($id) {
+
+    /**
+	* Responds to requests to GET /book/confirm-delete/{id?}
+	*/
+    public function getConfirmDelete($id = null) {
+
         $book = \App\Book::find($id);
-        return view('books.delete')->with('book',$book);
+
+        return view('books.delete')->with('book', $book);
+
     }
 
-    public function postDelete(Request $request) {
-        $book = \App\Book::find($request->id);
+    /**
+	* Responds to requests to GET /book/delete/{id?}
+	*/
+    public function getDelete($id = null) {
 
+        # Get the book to be deleted
+        $book = \App\Book::find($id);
+
+        if(is_null($book)) {
+            \Session::flash('message','Book not found.');
+            return redirect('/books');
+        }
+
+        # First remove any tags associated with this book
+        if($book->tags()) {
+            $book->tags()->detach();
+        }
+
+        # Then delete the book
         $book->delete();
 
-        \Session::flash('message','The book was deleted.');
+        # Done
+        \Session::flash('message',$book->title.' was deleted.');
         return redirect('/books');
+
     }
 
 } # eoc

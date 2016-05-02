@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>
@@ -39,7 +39,13 @@
     <nav>
         <ul>
             <li><a href='/books'>View all books</a></li>
-            <li><a href='/book/create'>Add a new book</a></li>
+            @if(Auth::check())
+                <li><a href='/book/create'>Add a new book</a></li>
+                <li><a href='/logout'>Logout</a></li>
+            @else
+                <li><a href='/login'>Login</a></li>
+                <li><a href='/register'>Register</a></li>
+            @endif
         </ul>
     </nav>
 
